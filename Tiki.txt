@@ -1,0 +1,110 @@
+var tongDonHang = 0;
+var tongTienHang = 0;
+var tongTienTietKiem=0;
+var tongTienChiTieu=0;
+var tongSanPhamDaMua = 0;
+var trangThaiDonHangConKhong  = true;
+var tongTienVanChuyenPhaiTra=0;
+var tongTienVanChuyenChuaGiam=0;
+var tongTienVanChuyenDuocGiam=0;
+var tongTienTietKiemMGGTiki=0;
+var tongTienTietKiemBangTikiXu=0;
+var pNo = 1;
+var si=10;
+function xemBaoCaoThongKe() {
+	var donHang = [];
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+		if (this.readyState == 4 && this.status == 200) {
+			donHang = JSON.parse(this.responseText)['data'];
+			trangThaiDonHangConKhong  = donHang.length >= si;
+			donHang = donHang.filter(order => order['status'] == 'hoan_thanh');
+			tongDonHang += donHang.length;
+			donHang.forEach(order => {
+				let t1 = order["grand_total"];
+				tongTienChiTieu += t1;
+				tongSanPhamDaMua+=order["items"].length;
+				var ships= [];
+				var discounts= [];
+				var disXu=[];
+				var tongTienHangOri=[];
+				if(order["price_summary"]){
+					ships=order["price_summary"].filter(s => s['name'] == 'Phí vận chuyển');
+					ships.forEach(ship => {
+						let t2 = ship["value"];
+						tongTienVanChuyenPhaiTra+=t2;
+					});
+					discounts=order["price_summary"].filter(s => s['name'] == 'Giảm giá');
+					discounts.forEach(x1 => {
+						let t3 = x1["value"];
+						tongTienTietKiemMGGTiki+=Math.abs(t3);
+					});
+					disXu=order["price_summary"].filter(s => s['name'] == 'Thanh toán bằng Tiki Xu');
+					disXu.forEach(x2 => {
+						let t4 = x2["value"];
+						tongTienTietKiemBangTikiXu+=Math.abs(t4);
+					});
+					tongTienHangOri=order["price_summary"].filter(s => s['name'] == 'Tạm tính');
+					tongTienHangOri.forEach(x3 => {
+						let t5 = x3["value"];
+						tongTienHang+=t5;
+					});
+
+				}
+			});
+			pNo += 1;
+			console.log('Đã thống kê được: ' + tongDonHang + ' đơn hàng');
+			if(trangThaiDonHangConKhong) {
+				console.log('Đợi chút tui đang xử lý...');
+				xemBaoCaoThongKe();
+			}
+			else {
+				var tongTienChiTieuX=pxgPrice(tongTienChiTieu);
+				tongTienHang=tongTienHang+tongTienVanChuyenPhaiTra;
+				tongTienVanChuyenChuaGiam=tongTienVanChuyenPhaiTra+tongTienVanChuyenDuocGiam;
+				tongTienTietKiem=tongTienTietKiemMGGTiki+tongTienTietKiemBangTikiXu+tongTienVanChuyenDuocGiam;
+				console.log("================================");
+				console.log("%c"+PXGCert(tongTienChiTieu), "font-size:26px;");
+				console.log("%cHết có: "+"%c"+tongTienChiTieuX+" vnđ%c chứ nhiêu hì hì", "font-size: 20px;","font-size: 26px; color:red;font-weigth:700", "font-size: 20px;");
+				console.log("================================");
+				console.log("%cTổng đơn hàng đã giao: "+"%c"+pxgPrice(tongDonHang)+" đơn hàng", "font-size: 26px;","font-size: 26px; color:green");
+                console.log("%cTổng sản phẩm đã đặt: " + "%c" + pxgPrice(tongSanPhamDaMua)+" sản phẩm", "font-size: 20px;","font-size: 20px; color:#fc0000");
+                console.log("%cTổng tiền hàng thực tế khi không dùng MggTiki và Tiki XU: "+"%c"+pxgPrice(tongTienHang)+" vnđ", "font-size: 20px;","font-size: 20px; color:#fc0000");
+                console.log("%cTổng tiền vận chuyển đã trả: "+"%c"+pxgPrice(tongTienVanChuyenPhaiTra)+" vnđ", "font-size: 20px;","font-size: 20px; color:#fc0000");
+				console.log("%cTổng tiền hàng + tiền ship: "+"%c"+tongTienChiTieuX+" vnđ", "font-size: 26px;","font-size: 26px; color:#fc0000");
+				console.log("================================");
+				console.log("%cTổng tiền vận chuyển nếu không dùng mã freeship Tiki: "+"%c"+pxgPrice(tongTienVanChuyenChuaGiam)+" vnđ", "font-size: 18px;","font-size: 18px; color:#fc0000");
+				console.log("%cTổng tiền vận chuyển tiết kiệm được khi dùng mã freeship Tiki: "+"%c"+pxgPrice(tongTienVanChuyenDuocGiam)+" vnđ", "font-size: 18px;","font-size: 18px; color:green");
+				console.log("%cTổng tiền tiết kiệm được khi dùng MggTiki: "+"%c"+pxgPrice(tongTienTietKiemMGGTiki)+" vnđ", "font-size: 18px;","font-size: 18px; color:green");
+				console.log("%cTổng tiền tiết kiệm được khi dùng Tiki XU: "+"%c"+pxgPrice(tongTienTietKiemBangTikiXu)+" vnđ", "font-size: 18px;","font-size: 18px; color:green");
+				console.log("%cTổng tiền tiết kiệm được: "+"%c"+pxgPrice(tongTienTietKiem)+" vnđ", "font-size: 18px;","font-size: 18px; color:green");
+				console.log("================================");
+			}
+		}
+	};
+	xhttp.open("GET", "https://tiki.vn/api/v2/me/orders?page=" + pNo + "&limit="+si+"&include=items,price_summary", true);
+	xhttp.send();
+}
+function PXGCert(pri){
+  if(pri<=10000000){
+  	return "Mình mua sắm cũng THƯỜNG ha";
+  }else if(pri>10000000 &&pri<=50000000){
+  	return "Mình mua sắm cũng TÀM TẠM ha";
+  }else if(pri>50000000 &&pri<80000000){
+  	return "Mình mua sắm hơi bị KINH ĐÓ hơ";
+  }else{
+  	return "Mình là bậc thầy mua sắm, là THÁNH TIKI kaka";
+  }
+}
+function pxgPrice(no, fixed=0) {
+	if(isNaN(no)) return 0;
+	no = no.toFixed(fixed);
+	let deli = ',';
+	no += '';
+	let rgx = /(\d+)(\d{3})/;
+	while (rgx.test(no)) {
+		no = no.replace(rgx, '$1' + deli + '$2');
+	}
+	return no;
+}
+xemBaoCaoThongKe();
